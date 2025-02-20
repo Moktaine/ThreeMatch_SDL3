@@ -20,6 +20,17 @@ gem::gem()
 
 }
 
+void gem::set_target_location(float x, float y)
+{
+	target_location[0] = x;
+	target_location[1] = y;
+}
+
+float* gem::get_target_location()
+{
+	return target_location;
+}
+
 void gem::set_location(float x, float y)
 {
 	location[0] = x;

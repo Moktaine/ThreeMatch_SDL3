@@ -41,8 +41,10 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 		for (int j = 0; j < CELL_COUNT; j++) {
 			gems[i][j] = new gem();
 			gems[i][j]->set_location(38.0f + i * 48, 38.0f + j * 48);
+			gems[i][j]->set_target_location(38.0f + i * 48, 38.0f + j * 48);
 		}
 	}
+
 
 	return SDL_APP_CONTINUE;
 }
@@ -90,16 +92,26 @@ SDL_AppResult SDL_AppIterate(void* appstate)
 			if (gems[i][j] == NULL) {
 				continue;
 			}
-			gem* newGem = gems[i][j];
-			float* location = newGem->get_location();
+			gem* curr_gem = gems[i][j];
+			float* location = curr_gem->get_location();
+			float* target_location = curr_gem->get_target_location();
 
-			SDL_FRect srcrect = newGem->source_rect;
+			SDL_FRect srcrect = curr_gem->source_rect;
 			SDL_FRect dstrect{ location[0], location[1],48,48 };
 			SDL_RenderTexture(renderer, texture_gems, &srcrect, &dstrect);
 
+			int x_distance_to_target_location = SDL_abs(target_location[0] - location[0]);
+			int y_distance_to_target_location = SDL_abs(target_location[1] - location[1]);
 
-			if (location[1] < WINDOW_HEIGHT - 38 - 48 - (j*48)) {
-				//newGem->set_location(location[0], location[1] + (100.0f * deltaTime));
+			if (x_distance_to_target_location < 0.5f && y_distance_to_target_location < 0.5f) {
+				continue;
+			}
+
+			if (y_distance_to_target_location > 2) {
+				curr_gem->set_location(location[0], location[1] + (10.0f * deltaTime * (y_distance_to_target_location > 30 ? y_distance_to_target_location: 30)));
+			}
+			else {
+				curr_gem->set_location(target_location[0], target_location[1]);
 			}
 		}
 	}
@@ -268,7 +280,9 @@ void move_gems(std::vector<int> effected_columns) {
 
 			gems[i][last_empty_block_y] = gems[moving_gem_x][moving_gem_y];
 			gems[moving_gem_x][moving_gem_y] = NULL;
-			gems[i][last_empty_block_y]->set_location(38.0f + i * 48, 38.0f + last_empty_block_y * 48);
+
+			gems[i][last_empty_block_y]->set_target_location(38.0f + i * 48, 38.0f + last_empty_block_y * 48);
+
 			non_effected_gems_coordinates.pop_back();
 			last_empty_block_y--;
 		}
@@ -286,7 +300,9 @@ void add_gems(std::vector<int> columns_to_add)
 			}
 			
 			gems[i][j] = new gem();
-			gems[i][j]->set_location(38.0f + i * 48, 38.0f + j * 48);
+			gems[i][j]->set_location(38.0f + i * 48, -38);
+			gems[i][j]->set_target_location(38.0f + i * 48, 38.0f + j * 48);
 		}
 	}
+
 }

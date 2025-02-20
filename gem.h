@@ -4,7 +4,8 @@
 class gem
 {
 private:
-	float location[2] = { 50.0f, 50.0f };
+	float location[2] = { 0.0f, 0.0f };
+	float target_location[2] = { 0.0f, 0.0f };
 public:
 
 	enum EColor {
@@ -20,6 +21,8 @@ public:
 	SDL_FRect source_rect { 0,0,16,16 };
 
 	gem();
+	void set_target_location(float x, float y);
+	float* get_target_location();
 	void set_location(float x, float y);
 	float* get_location();
 	EColor get_color();
