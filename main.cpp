@@ -4,6 +4,7 @@
 #include <SDL3/SDL_main.h>
 #include "main.h"
 #include "gem.h"
+#include <time.h>
 
 
 constexpr int  WINDOW_WIDTH = 700;
@@ -16,7 +17,7 @@ Uint64 lastTick = 0;
 Uint64 currentTick = 0;
 float deltaTime;
 
-
+	
 SDL_Texture* texture_gems;
 gem* gems[CELL_COUNT][CELL_COUNT];
 
@@ -35,7 +36,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 
 	texture_gems = IMG_LoadTexture(renderer, "Sprites/gems.png");
 	
-	
+	srand(time(NULL));
 	for (int i = 0; i < CELL_COUNT; i++) {
 		for (int j = 0; j < CELL_COUNT; j++) {
 			gems[i][j] = new gem();
@@ -221,15 +222,12 @@ void check_around_the_gem(int x, int y)
 		}
 
 	}
-	std::vector<gem*> first_gems_to_fall_on_column;
+	std::vector<int> effected_columns;
 	if (x_indexes.size() >= 3) {
 		for (int index_x : x_indexes) {
 			gems[index_x][y] = NULL;
 			
-			
-			if (!(y_indexes.size() >= 3 && index_x == x)) {
-				first_gems_to_fall_on_column.push_back(gems[index_x][y - 1]);
-			}
+			effected_columns.push_back(index_x);
 		}
 	}
 	
@@ -237,12 +235,58 @@ void check_around_the_gem(int x, int y)
 		for (int index_y : y_indexes) {
 			gems[x][index_y] = NULL;
 		}
-		first_gems_to_fall_on_column.push_back(gems[x][y_indexes[y_indexes.size() - 1] - 1]);
+		if(effected_columns.size() == 0){
+			effected_columns.push_back(x);
+		}
 	}
 	
-	for (int i = 0; i < first_gems_to_fall_on_column.size(); i++) {
-		float* location = first_gems_to_fall_on_column[i]->get_location();
-		int* indexes = find_indexes_from_location(location[0], location[1]);
-		SDL_Log("%d %d", indexes[0], indexes[1]);
+	for (int i = 0; i < effected_columns.size(); i++) {
+	}
+
+	move_gems(effected_columns);
+}
+
+
+void move_gems(std::vector<int> effected_columns) {
+	for (int i : effected_columns) {
+		int last_empty_block_y = -1;
+		std::vector<std::vector<int>> non_effected_gems_coordinates;
+		for (int j = CELL_COUNT-1; j >= 0; j--) {
+			if (gems[i][j] == NULL && last_empty_block_y == -1) {
+				last_empty_block_y = j;
+			}
+			else if(gems[i][j] != NULL && last_empty_block_y != -1) {
+				non_effected_gems_coordinates.push_back({i,j});
+			}
+		}
+		std::reverse(non_effected_gems_coordinates.begin(), non_effected_gems_coordinates.end());
+
+		while (non_effected_gems_coordinates.size() > 0) {
+			
+			int moving_gem_x = non_effected_gems_coordinates.back()[0];
+			int moving_gem_y = non_effected_gems_coordinates.back()[1];
+
+			gems[i][last_empty_block_y] = gems[moving_gem_x][moving_gem_y];
+			gems[moving_gem_x][moving_gem_y] = NULL;
+			gems[i][last_empty_block_y]->set_location(38.0f + i * 48, 38.0f + last_empty_block_y * 48);
+			non_effected_gems_coordinates.pop_back();
+			last_empty_block_y--;
+		}
+	}
+
+	add_gems(effected_columns);
+}
+
+void add_gems(std::vector<int> columns_to_add)
+{
+	for (int i : columns_to_add) {
+		for (int j = 0; j < CELL_COUNT; j++) {
+			if (gems[i][j] != NULL) {
+				break;
+			}
+			
+			gems[i][j] = new gem();
+			gems[i][j]->set_location(38.0f + i * 48, 38.0f + j * 48);
+		}
 	}
 }
