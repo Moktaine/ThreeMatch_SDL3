@@ -39,7 +39,20 @@ void gem::set_location(float x, float y)
 void gem::set_color(EColor target_color)
 {
 	color = target_color;
-	
+	switch (color) {
+	case EColor_Red:
+		source_rect.y = 0;
+		break;
+	case EColor_Blue:
+		source_rect.y = 32;
+		break;
+	case EColor_Pink:
+		source_rect.y = 64;
+		break;
+	case EColor_Green:
+		source_rect.y = 96;
+		break;
+	}
 }
 
 float* gem::get_location()

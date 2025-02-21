@@ -9,6 +9,7 @@
 constexpr int  WINDOW_WIDTH = 700;
 constexpr int  WINDOW_HEIGHT = 700;
 constexpr int  CELL_COUNT = 13;
+constexpr float  CELL_SPEED = 300.0f;
 	
 static SDL_Window* window = NULL;
 static SDL_Renderer* renderer = NULL;
@@ -16,9 +17,12 @@ Uint64 lastTick = 0;
 Uint64 currentTick = 0;
 float deltaTime;
 
-	
 SDL_Texture* texture_gems;
 gem* gems[CELL_COUNT][CELL_COUNT];
+
+int indexes_of_clicked_cell[2] = {-1, -1};
+std::vector<int> queued_columns;
+bool queued = false;
 
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 	if (!SDL_Init(SDL_INIT_VIDEO)) {
@@ -40,7 +44,6 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 		for (int j = 0; j < CELL_COUNT; j++) {
 			bool gem_match = true;
 			while (gem_match) {
-				SDL_Log("%d %d", i, j);
 				gems[i][j] = new gem();
 				gem_match = check_init_match_at(i, j, gems[i][j]->get_color());
 			}
@@ -90,7 +93,6 @@ SDL_AppResult SDL_AppIterate(void* appstate)
 		return SDL_APP_FAILURE;
 	}
 
-
 	for (int i = 0; i < CELL_COUNT; i++) {
 		for (int j = 0; j < CELL_COUNT; j++) {
 			if (gems[i][j] == NULL) {
@@ -110,16 +112,26 @@ SDL_AppResult SDL_AppIterate(void* appstate)
 			if (x_distance_to_target_location < 0.5f && y_distance_to_target_location < 0.5f) {
 				continue;
 			}
-
 			if (y_distance_to_target_location > 2) {
-				curr_gem->set_location(location[0], location[1] + (300.0f * deltaTime));
+				curr_gem->set_location(location[0], location[1] + (CELL_SPEED * deltaTime));
+				queued = false;
 			}
 			else {
 				curr_gem->set_location(target_location[0], target_location[1]);
+				queued = true;
 			}
 		}
 	}
-	
+
+
+	if (queued) {
+		for (int i : queued_columns) {
+			for (int j = 0; j < CELL_COUNT; j++) {
+				check_around_the_gem(i, j);
+			}
+		}
+		queued = false;
+	}
 
 	SDL_RenderPresent(renderer);
 	return SDL_APP_CONTINUE;  
@@ -141,14 +153,33 @@ void handle_mouse_button(SDL_Event* event)
 	SDL_GetMouseState(&x, &y);
 
 	int* indexes = find_indexes_from_location(x, y);
+
+
 	if (indexes == NULL) {
 		return;
 	}
-	SDL_Log("%f, %f", x, y);
-	SDL_Log("%d, %d", indexes[0], indexes[1]);
 
+	int distance_to_selected_index;
+	if (indexes_of_clicked_cell[0] == -1 && indexes_of_clicked_cell[1] == -1) {
+		indexes_of_clicked_cell[0] = indexes[0];
+		indexes_of_clicked_cell[1] = indexes[1];
+	}else{
+		distance_to_selected_index = abs(indexes_of_clicked_cell[0] - indexes[0]) + abs(indexes_of_clicked_cell[1] - indexes[1]);
 
-	check_around_the_gem(indexes[0], indexes[1]);
+		if (distance_to_selected_index == 1) {
+			swap_gems(indexes_of_clicked_cell[0], indexes_of_clicked_cell[1], indexes[0], indexes[1]);
+			indexes_of_clicked_cell[0] = -1;
+			indexes_of_clicked_cell[1] = -1;
+		}
+		else if(distance_to_selected_index == 0){
+			indexes_of_clicked_cell[0] = -1;
+			indexes_of_clicked_cell[1] = -1;
+		}
+		else{
+			indexes_of_clicked_cell[0] = indexes[0];
+			indexes_of_clicked_cell[1] = indexes[1];
+		}
+	}
 
 }
 
@@ -183,12 +214,13 @@ bool check_init_match_at(int x, int y, gem::EColor color)
 	return false;
 }
 
-void check_around_the_gem(int x, int y)
+bool check_around_the_gem(int x, int y)
 {
 	if (gems[x][y] == NULL) {
-		return;
+		return false;
 	}
-
+	
+	
 	gem* clicked_gem = gems[x][y];
 	gem::EColor clicked_gem_color = clicked_gem->get_color();
 
@@ -285,8 +317,9 @@ void check_around_the_gem(int x, int y)
 
 	if (effected_columns.size() != 0) {
 		move_gems(effected_columns);
+		return true;
 	}
-
+	return false;
 }
 
 
@@ -313,7 +346,6 @@ void move_gems(std::vector<int> effected_columns) {
 			gems[moving_gem_x][moving_gem_y] = NULL;
 
 			gems[i][last_empty_block_y]->set_target_location(38.0f + i * 48, 38.0f + last_empty_block_y * 48);
-
 			non_effected_gems_coordinates.pop_back();
 			last_empty_block_y--;
 		}
@@ -329,7 +361,6 @@ void add_gems(std::vector<int> columns_to_add)
 		for (int j = CELL_COUNT - 1; j >= 0; j--) {
 			if (bottom_gem_index_y == -1 && gems[i][j] == NULL) {
 				bottom_gem_index_y = j;
-				SDL_Log("%d", bottom_gem_index_y);
 				break;
 			}
 		}
@@ -343,5 +374,22 @@ void add_gems(std::vector<int> columns_to_add)
 			gems[i][j]->set_target_location(38.0f + i * 48, 38.0f + j * 48);
 		}
 	}
+	queued_columns = columns_to_add;
+	
+}
 
+void swap_gems(int x1, int y1, int x2, int y2)
+{
+	gem::EColor temp_color = gems[x1][y1]->get_color();
+
+	gems[x1][y1]->set_color(gems[x2][y2]->get_color());
+	gems[x2][y2]->set_color(temp_color);
+	bool check1 = !check_around_the_gem(x1, y1);
+	bool check2 = !check_around_the_gem(x2, y2);
+	if (check1 && check2) {
+		gem::EColor temp_color = gems[x1][y1]->get_color();
+
+		gems[x1][y1]->set_color(gems[x2][y2]->get_color());
+		gems[x2][y2]->set_color(temp_color);
+	}
 }
