@@ -3,7 +3,6 @@
 #include <SDL3_Image/SDL_image.h>
 #include <SDL3/SDL_main.h>
 #include "main.h"
-#include "gem.h"
 #include <time.h>
 
 
@@ -39,7 +38,12 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 	srand(time(NULL));
 	for (int i = 0; i < CELL_COUNT; i++) {
 		for (int j = 0; j < CELL_COUNT; j++) {
-			gems[i][j] = new gem();
+			bool gem_match = true;
+			while (gem_match) {
+				SDL_Log("%d %d", i, j);
+				gems[i][j] = new gem();
+				gem_match = check_init_match_at(i, j, gems[i][j]->get_color());
+			}
 			gems[i][j]->set_location(38.0f + i * 48, 38.0f + j * 48);
 			gems[i][j]->set_target_location(38.0f + i * 48, 38.0f + j * 48);
 		}
@@ -108,7 +112,7 @@ SDL_AppResult SDL_AppIterate(void* appstate)
 			}
 
 			if (y_distance_to_target_location > 2) {
-				curr_gem->set_location(location[0], location[1] + (10.0f * deltaTime * (y_distance_to_target_location > 30 ? y_distance_to_target_location: 30)));
+				curr_gem->set_location(location[0], location[1] + (300.0f * deltaTime));
 			}
 			else {
 				curr_gem->set_location(target_location[0], target_location[1]);
@@ -158,6 +162,27 @@ int* find_indexes_from_location(float x, float y) {
 	return indexes;
 }
 
+bool check_init_match_at(int x, int y, gem::EColor color)
+{
+	if (x > 1) {
+		if (gems[x-1][y] != NULL && gems[x-2][y] != NULL) {
+			if (gems[x-1][y]->get_color() == color && gems[x-2][y]->get_color() == color) {
+				return true;
+			}
+		}
+	}
+
+	if (y > 1) {
+		if (gems[x][y - 1] != NULL && gems[x][y - 2] != NULL) {
+			if (gems[x][y - 1]->get_color() == color && gems[x][y - 2]->get_color() == color) {
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 void check_around_the_gem(int x, int y)
 {
 	if (gems[x][y] == NULL) {
@@ -175,7 +200,7 @@ void check_around_the_gem(int x, int y)
 
 		if (gems[x][index] == NULL || index < 0 || index >= CELL_COUNT) {
 			if (decrement) { break; }
-			if (gems[x][y+1] == NULL) { break; }
+			if (gems[x][y-1] == NULL) { break; }
 			decrement = true;
 			index = y - 1;
 		}
@@ -237,25 +262,31 @@ void check_around_the_gem(int x, int y)
 	std::vector<int> effected_columns;
 	if (x_indexes.size() >= 3) {
 		for (int index_x : x_indexes) {
-			gems[index_x][y] = NULL;
+			
+				gems[index_x][y] = NULL;
+			
 			
 			effected_columns.push_back(index_x);
 		}
 	}
 	
 	if (y_indexes.size() >= 3) {
-		for (int index_y : y_indexes) {
-			gems[x][index_y] = NULL;
-		}
+		
+			for (int index_y : y_indexes) {
+				gems[x][index_y] = NULL;
+			}
+		
+
 		if(effected_columns.size() == 0){
 			effected_columns.push_back(x);
 		}
 	}
-	
-	for (int i = 0; i < effected_columns.size(); i++) {
+
+
+	if (effected_columns.size() != 0) {
+		move_gems(effected_columns);
 	}
 
-	move_gems(effected_columns);
 }
 
 
@@ -294,13 +325,21 @@ void move_gems(std::vector<int> effected_columns) {
 void add_gems(std::vector<int> columns_to_add)
 {
 	for (int i : columns_to_add) {
+		int bottom_gem_index_y = -1;
+		for (int j = CELL_COUNT - 1; j >= 0; j--) {
+			if (bottom_gem_index_y == -1 && gems[i][j] == NULL) {
+				bottom_gem_index_y = j;
+				SDL_Log("%d", bottom_gem_index_y);
+				break;
+			}
+		}
+
 		for (int j = 0; j < CELL_COUNT; j++) {
 			if (gems[i][j] != NULL) {
 				break;
 			}
-			
 			gems[i][j] = new gem();
-			gems[i][j]->set_location(38.0f + i * 48, -38);
+			gems[i][j]->set_location(38.0f + i * 48, (bottom_gem_index_y+1-j) * 48  * -1);
 			gems[i][j]->set_target_location(38.0f + i * 48, 38.0f + j * 48);
 		}
 	}

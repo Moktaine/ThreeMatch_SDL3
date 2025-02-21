@@ -16,14 +16,15 @@ public:
 	};
 
 
-	EColor color = static_cast<EColor>(rand()%4);
+	EColor color = static_cast<gem::EColor>(rand() % 4);
 
-	SDL_FRect source_rect { 0,0,16,16 };
+	SDL_FRect source_rect{ 0,0,16,16 };
 
 	gem();
 	void set_target_location(float x, float y);
-	float* get_target_location();
 	void set_location(float x, float y);
+	void set_color(EColor target_color);
+	float* get_target_location();
 	float* get_location();
 	EColor get_color();
 };

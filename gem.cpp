@@ -17,7 +17,6 @@ gem::gem()
 		source_rect.y = 96;
 		break;
 	}
-
 }
 
 void gem::set_target_location(float x, float y)
@@ -35,6 +34,12 @@ void gem::set_location(float x, float y)
 {
 	location[0] = x;
 	location[1] = y;
+}
+
+void gem::set_color(EColor target_color)
+{
+	color = target_color;
+	
 }
 
 float* gem::get_location()
